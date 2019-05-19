@@ -10,8 +10,9 @@
 
 const String getUrl = "http://192.168.1.68:3000/conf/wakeup";
 // Set the query time as 2am
-const uint8_t queryHour = 10;
-const uint8_t queryMinute = 30;
+const uint8_t queryHour = 2;
+const uint8_t queryMinute = 0;
+const uint32_t millisecondsSwitchedOn = 600000; // 10 mins
 
 // 4 objects, one is an object containing two objects. Add 50 bytes to it.
 const size_t capacity = JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(4) + 50;
@@ -70,18 +71,7 @@ void setup() {
   Serial.println("/");
 }
 
-uint16_t r, g, b = 0;
 void loop() {
-
-  setLightColor(r, g, b);
-  delay(10);
-  r++;
-  r = r % 1024;
-  g++;
-  g = g % 1024;
-  b++;
-  b = b % 1024;
-  return;
   // put your main code here, to run repeatedly:
   alarmDataRequested = false;
   String json = httpGet(getUrl);
@@ -140,7 +130,7 @@ void loop() {
       Serial.println("Activating lights!");
       setLightColor(1023, 1023, 0);
       lightsLitTime = millis();
-    } else if ((lightsLitTime > 0) && (millis() - lightsLitTime > 600000)) {
+    } else if ((lightsLitTime > 0) && (millis() - lightsLitTime > millisecondsSwitchedOn)) {
       // Turn the lights off if they are turned of (determined by lightLitTime being > 0) and at least 10mins has elapsed since turned on.
       Serial.println("Turning lights off.");
       setLightColor(0, 0, 0);
