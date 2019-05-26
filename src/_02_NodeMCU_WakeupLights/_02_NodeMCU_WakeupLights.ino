@@ -68,8 +68,6 @@ void loop() {
   getJsonAndHandleResponse();
 
   // Wait until the right amount of time has elapsed before querying the server again.
-  elapsedTime = millis();
-  long lightsLitTime = 0;
   handleWaitingUntilAlarmTime();
 }
 
@@ -125,6 +123,8 @@ void getJsonAndHandleResponse() {
 }
 
 void handleWaitingUntilAlarmTime() {
+  elapsedTime = millis();
+  long lightsLitTime = 0;
   while((alarmDataRequested) || (currentHour != queryHour) || (currentMinute != queryMinute)) {
     if (millis() - elapsedTime >= 60000) {
       elapsedTime = millis();
