@@ -8,6 +8,8 @@
 #include "pinouts.h"
 #include "wifi_credentials.h"
 
+WiFiServer server(80);
+
 const String getUrl = "http://192.168.1.68:3000/conf/wakeup";
 // Set the query time as 2am
 const uint8_t queryHour = 2;
@@ -31,6 +33,7 @@ bool alarmDataRequested = false;
 void handleConnectionStatus();
 void getJsonAndHandleResponse();
 void handleWaitingUntilAlarmTime();
+void handleLocalHtmlQuery();
 
 void setup() {
   // put your setup code here, to run once:
@@ -54,6 +57,10 @@ void setup() {
   
   Serial.println("");
   Serial.println("WiFi connected");
+
+  // Initialise server
+  server.begin();
+  Serial.println("Server started");
  
   // Print the IP address
   Serial.print("Use this URL to connect: ");
@@ -139,7 +146,10 @@ void handleWaitingUntilAlarmTime() {
       currentMinute = currentMinute % 60;
     }
 
-    delay(10000);
+    long serverCounterTime = millis();
+    while(millis() - serverCounterTime < 10000) {
+      handleLocalHtmlQuery(lightsLitTime > 0);
+    }
 
     if ((alarmActive) && (currentHour == alarmHour) && (currentMinute == alarmMinute)) {
       // Turn lights on if the alarm is active and the hour and minute values match the alarm values.
@@ -152,10 +162,56 @@ void handleWaitingUntilAlarmTime() {
       setLightColor(0, 0, 0);
       lightsLitTime = 0;
     }
-
-    Serial.print("Estimated time: ");
-    Serial.print(currentHour);
-    Serial.print(":");
-    Serial.println(currentMinute);
   }
+}
+
+void handleLocalHtmlQuery(bool areLightsOn) {
+  // Check if a client has connected
+  WiFiClient client = server.available();
+  if (!client) {
+    return;
+  }
+ 
+  // Wait until the client sends some data
+  Serial.println("new client");
+  while(!client.available()){
+    delay(1);
+  }
+ 
+  // Read the first line of the request
+  String request = client.readStringUntil('\r');
+  Serial.println(request);
+  client.flush();
+ 
+  // Match the request
+  bool diagnosticsRequested = (request.indexOf("/diagnostics") != -1);
+ 
+  // Return the response
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: text/html");
+  client.println(""); //  do not forget this one
+  client.println("<!DOCTYPE HTML>");
+  client.println("<html>");
+
+  client.println("<a href=\"/diagnostics\"\"><button>Get diagnostics</button></a>");
+  if (diagnosticsRequested) {
+    client.println("<br><br>");
+    char currentTime[12];
+    char alarmTime[13];
+    char alarmActive[10];
+    char lightsOn[13];
+    snprintf(currentTime, 12, "Time: %02d:%02d", currentHour, currentMinute);
+    snprintf(alarmTime, 13, "Alarm: %02d:%02d", alarmHour, alarmMinute);
+    snprintf(alarmActive, 10, "Active: %d", alarmActive ? 1 : 0);
+    snprintf(lightsOn, 13, "Lights on: %d", areLightsOn ? 1 : 0);
+    client.println(currentTime);
+    client.println("<br>");
+    client.println(alarmTime);
+    client.println("<br>");
+    client.println(alarmActive);
+    client.println("<br>");
+    client.println(lightsOn);
+    client.println("<br>");
+  }
+  client.println("</html>");
 }
