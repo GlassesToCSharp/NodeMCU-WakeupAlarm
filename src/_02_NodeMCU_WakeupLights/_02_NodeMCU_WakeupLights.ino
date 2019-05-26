@@ -28,6 +28,10 @@ bool alarmActive = false;
 uint64_t elapsedTime = 0;
 bool alarmDataRequested = false;
 
+void handleConnectionStatus();
+void getJsonAndHandleResponse();
+void handleWaitingUntilAlarmTime();
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
@@ -46,20 +50,7 @@ void setup() {
  
   WiFi.begin(ssid, password);
  
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-    if (WiFi.status() == WL_CONNECT_FAILED) {
-      setLedHandlerState(STATE_FAILED);
-      setBoardLedState(false);
-      while(1){
-        delay(2000);
-      }
-    }
-  }
-  setLedHandlerState(STATE_CONNECTED);
-  // Set colour off.
-  setLightColor(0, 0, 0);
+  handleConnectionStatus();
   
   Serial.println("");
   Serial.println("WiFi connected");
@@ -74,6 +65,32 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   alarmDataRequested = false;
+  getJsonAndHandleResponse();
+
+  // Wait until the right amount of time has elapsed before querying the server again.
+  elapsedTime = millis();
+  long lightsLitTime = 0;
+  handleWaitingUntilAlarmTime();
+}
+
+void handleConnectionStatus() {
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+    if (WiFi.status() == WL_CONNECT_FAILED) {
+      setLedHandlerState(STATE_FAILED);
+      setBoardLedState(false);
+      while(1){
+        delay(2000);
+      }
+    }
+  }
+  setLedHandlerState(STATE_CONNECTED);
+  // Set colour off.
+  setLightColor(0, 0, 0);
+}
+
+void getJsonAndHandleResponse() {
   String json = httpGet(getUrl);
   if (json != "") {
     Serial.println(json);
@@ -105,10 +122,9 @@ void loop() {
     Serial.println("Failed to get json");
     setBoardLedState(false);
   }
+}
 
-  // Wait until the right amount of time has elapsed before querying the server again.
-  elapsedTime = millis();
-  long lightsLitTime = 0;
+void handleWaitingUntilAlarmTime() {
   while((alarmDataRequested) || (currentHour != queryHour) || (currentMinute != queryMinute)) {
     if (millis() - elapsedTime >= 60000) {
       elapsedTime = millis();
