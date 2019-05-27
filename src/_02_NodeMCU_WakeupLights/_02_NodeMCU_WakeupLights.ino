@@ -16,6 +16,8 @@ const uint8_t queryHour = 2;
 const uint8_t queryMinute = 0;
 const uint32_t millisecondsSwitchedOn = 600000; // 10 mins
 
+const LED_COLORS alarmColor = { .red = 1023, .green = 1023, .blue = 0}; // In RGB format, 0-1023
+const LED_COLORS lightsOff = {0, 0, 0}; // Lights off!
 // 4 objects, one is an object containing two objects. Add 50 bytes to it.
 const size_t capacity = JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(4) + 50;
 DynamicJsonDocument doc(capacity);
@@ -92,7 +94,7 @@ void handleConnectionStatus() {
   }
   setLedHandlerState(STATE_CONNECTED);
   // Set colour off.
-  setLightColor(0, 0, 0);
+  setLightColor(lightsOff);
 }
 
 void getJsonAndHandleResponse() {
@@ -154,12 +156,12 @@ void handleWaitingUntilAlarmTime() {
     if ((alarmActive) && (currentHour == alarmHour) && (currentMinute == alarmMinute)) {
       // Turn lights on if the alarm is active and the hour and minute values match the alarm values.
       Serial.println("Activating lights!");
-      setLightColor(1023, 1023, 0);
+      setLightColor(alarmColor);
       lightsLitTime = millis();
     } else if ((lightsLitTime > 0) && (millis() - lightsLitTime > millisecondsSwitchedOn)) {
       // Turn the lights off if they are turned of (determined by lightLitTime being > 0) and at least 10mins has elapsed since turned on.
       Serial.println("Turning lights off.");
-      setLightColor(0, 0, 0);
+      setLightColor(lightsOff);
       lightsLitTime = 0;
     }
   }
