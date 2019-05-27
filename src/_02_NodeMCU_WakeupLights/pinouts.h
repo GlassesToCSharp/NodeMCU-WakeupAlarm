@@ -1,3 +1,7 @@
+// Likely this file will be used by many other files. Include some include guards.
+#ifndef PINOUTS_H_INCLUDED
+#define PINOUTS_H_INCLUDED
+
 #define D0 16
 #define D1 5
 #define D2 4
@@ -10,3 +14,5 @@
 
 #define BOARD_LED D0
 #define WIFI_LED D4
+
+#endif
