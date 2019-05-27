@@ -183,9 +183,6 @@ void handleLocalHtmlQuery(bool areLightsOn) {
   Serial.println(request);
   client.flush();
  
-  // Match the request
-  bool diagnosticsRequested = (request.indexOf("/diagnostics") != -1);
- 
   // Return the response
   client.println("HTTP/1.1 200 OK");
   client.println("Content-Type: text/html");
@@ -194,8 +191,11 @@ void handleLocalHtmlQuery(bool areLightsOn) {
   client.println("<html>");
 
   client.println("<a href=\"/diagnostics\"\"><button>Get diagnostics</button></a>");
-  if (diagnosticsRequested) {
-    client.println("<br><br>");
+  // Check if we have asked for the diagnostics.
+  if (request.indexOf("/diagnostics") != -1) {
+    char lineBreak[] = "<br>";
+    client.print(lineBreak);
+    client.println(lineBreak);
     char currentTime[12];
     char alarmTime[13];
     char alarmActive[10];
@@ -205,13 +205,13 @@ void handleLocalHtmlQuery(bool areLightsOn) {
     snprintf(alarmActive, 10, "Active: %d", alarmActive ? 1 : 0);
     snprintf(lightsOn, 13, "Lights on: %d", areLightsOn ? 1 : 0);
     client.println(currentTime);
-    client.println("<br>");
+    client.println(lineBreak);
     client.println(alarmTime);
-    client.println("<br>");
+    client.println(lineBreak);
     client.println(alarmActive);
-    client.println("<br>");
+    client.println(lineBreak);
     client.println(lightsOn);
-    client.println("<br>");
+    client.println(lineBreak);
   }
   client.println("</html>");
 }
