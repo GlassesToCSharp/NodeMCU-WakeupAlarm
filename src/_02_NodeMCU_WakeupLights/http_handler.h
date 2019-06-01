@@ -1,6 +1,6 @@
 #include "lights_handler.h"
 
-const char html[] PROGMEM = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE HTML>\r\n<html>\r\n<form action=\"/setColor\">Select lights color:<input type=\"color\" name=\"lightsColor\" value=\"#%s\"><input type=\"submit\"></form>\r\n<a href=\"/diagnostics\"\"><button>Get diagnostics</button></a>\r\n%s</html>\r\n";
+const char html[] PROGMEM = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE HTML>\r\n<html>\r\n<form action=\"/setColor\">Select lights color:<input type=\"color\" name=\"lightsColor\" value=\"#%s\"><input type=\"submit\"></form>\r\n<br>\r\n<a href=\"/diagnostics\"\"><button>Get diagnostics</button></a>\r\n%s</html>\r\n";
 
 const char diagnosticHtml[] PROGMEM = "<br>\r\nTime: %02d:%02d\r\n<br>\r\nAlarm: %02d:%02d\r\n<br>\r\nActive: %d\r\n<br>\r\nLights on: %d\r\n<br>\r\n";
 
