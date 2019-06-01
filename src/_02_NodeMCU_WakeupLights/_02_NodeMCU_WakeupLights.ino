@@ -18,6 +18,8 @@ const uint32_t millisecondsSwitchedOn = 600000; // 10 mins
 
 const LED_COLORS alarmColor = { .red = 1023, .green = 1023, .blue = 0}; // In RGB format, 0-1023
 const LED_COLORS lightsOff = {0, 0, 0}; // Lights off!
+LED_COLORS currentLightColor = {0, 0, 0};
+
 // 4 objects, one is an object containing two objects. Add 50 bytes to it.
 const size_t capacity = JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(4) + 50;
 DynamicJsonDocument doc(capacity);
@@ -36,6 +38,7 @@ void handleConnectionStatus();
 void getJsonAndHandleResponse();
 void handleWaitingUntilAlarmTime();
 void handleLocalHtmlQuery();
+void createHtmlDisplay(const LED_COLORS* currentColor, const bool showDiagnostics);
 
 void setup() {
   // put your setup code here, to run once:
@@ -46,24 +49,24 @@ void setup() {
   Serial.println("Testing light...");
   delay(5000);
   setLedHandlerState(STATE_CONNECTING);
- 
+
   // Connect to WiFi network
   Serial.println();
   Serial.println();
   Serial.print("Connecting to ");
   Serial.println(ssid);
- 
+
   WiFi.begin(ssid, password);
- 
+
   handleConnectionStatus();
-  
+
   Serial.println("");
   Serial.println("WiFi connected");
 
   // Initialise server
   server.begin();
   Serial.println("Server started");
- 
+
   // Print the IP address
   Serial.print("Use this URL to connect: ");
   Serial.print("http://");
@@ -87,7 +90,7 @@ void handleConnectionStatus() {
     if (WiFi.status() == WL_CONNECT_FAILED) {
       setLedHandlerState(STATE_FAILED);
       setBoardLedState(false);
-      while(1){
+      while (1) {
         delay(2000);
       }
     }
@@ -134,14 +137,14 @@ void getJsonAndHandleResponse() {
 void handleWaitingUntilAlarmTime() {
   elapsedTime = millis();
   long lightsLitTime = 0;
-  while((alarmDataRequested) || (currentHour != queryHour) || (currentMinute != queryMinute)) {
+  while ((alarmDataRequested) || (currentHour != queryHour) || (currentMinute != queryMinute)) {
     if (millis() - elapsedTime >= 60000) {
       elapsedTime = millis();
       currentMinute++;
       // Reset this flag here, as it must be reset when the time changes.
       alarmDataRequested = false;
     }
-    
+
     if (currentMinute >= 60) {
       currentHour++;
       currentHour = currentHour % 24; // we're not interested in the actual date
@@ -149,55 +152,137 @@ void handleWaitingUntilAlarmTime() {
     }
 
     long serverCounterTime = millis();
-    while(millis() - serverCounterTime < 10000) {
-      handleLocalHtmlQuery(lightsLitTime > 0);
+    while (millis() - serverCounterTime < 10000) {
+      handleLocalHtmlQuery();
     }
 
     if ((alarmActive) && (currentHour == alarmHour) && (currentMinute == alarmMinute)) {
       // Turn lights on if the alarm is active and the hour and minute values match the alarm values.
       Serial.println("Activating lights!");
       setLightColor(alarmColor);
+      currentLightColor = alarmColor;
       lightsLitTime = millis();
     } else if ((lightsLitTime > 0) && (millis() - lightsLitTime > millisecondsSwitchedOn)) {
       // Turn the lights off if they are turned of (determined by lightLitTime being > 0) and at least 10mins has elapsed since turned on.
       Serial.println("Turning lights off.");
       setLightColor(lightsOff);
+      currentLightColor = lightsOff;
       lightsLitTime = 0;
     }
   }
 }
 
-void handleLocalHtmlQuery(bool areLightsOn) {
+void handleLocalHtmlQuery() {
   // Check if a client has connected
   WiFiClient client = server.available();
   if (!client) {
     return;
   }
- 
+
   // Wait until the client sends some data
   Serial.println("new client");
-  while(!client.available()){
+  while (!client.available()) {
     delay(1);
   }
- 
+
   // Read the first line of the request
   String request = client.readStringUntil('\r');
   Serial.println(request);
   client.flush();
- 
-  // Return the response
-  client.println("HTTP/1.1 200 OK");
-  client.println("Content-Type: text/html");
-  client.println(""); //  do not forget this one
-  client.println("<!DOCTYPE HTML>");
-  client.println("<html>");
+  
+  // Check if the colour has been set **BEFORE CREATING THE WEB PAGE**
+  int indexOfColorRequest = request.indexOf("/setColor");
+  if (indexOfColorRequest != -1) {
+    // Begin long-ass process of extracting the colour parameter from the query.
+    // This process uses String commands. Eurgh.
+    String sub = request.substring(indexOfColorRequest);
+    int indexOfQuestionMark = sub.indexOf("?");
+    if (indexOfQuestionMark != -1){
+      sub = sub.substring(indexOfQuestionMark + 1);
+      String colorRequest;
+      // There may be other parameters
+      while(sub.indexOf("=") != -1) {
+        // Get first parameter
+        int indexOfEquals = sub.indexOf("=");
+        if (indexOfEquals == -1) {
+          break;
+        }
+        String tempSub = sub.substring(0, indexOfEquals);
+        if (tempSub.equalsIgnoreCase("lightsColor")) {
+          // The string will contain the URL encoded value for '#' (&23). Dont include it.
+          colorRequest = sub.substring(indexOfEquals + 4, indexOfEquals + 4 + 6);
+        }
+        
+        int indexOfAmpersand = sub.indexOf("&");
+        if (indexOfAmpersand == -1) {
+          break;
+        }
+        sub = sub.substring(indexOfAmpersand + 1);
+      }
 
-  client.println("<a href=\"/diagnostics\"\"><button>Get diagnostics</button></a>");
+      if (colorRequest[0] != '\0') {
+        LED_COLORS color = {0, 0, 0};
+        for (int colourIndex = 0; colourIndex < 3; colourIndex++) {
+          uint8_t intValue = 0;
+          uint8_t digit = 0;
+          
+          for (uint8_t i = 0; i < 2; i++) {
+            uint8_t actualIndex = (2 * colourIndex) + i;
+            if (colorRequest[actualIndex] >= '0' && colorRequest[actualIndex] <= '9') {
+              digit = colorRequest[actualIndex] - '0';
+            } else if ((colorRequest[actualIndex] >= 'A' && colorRequest[actualIndex] <= 'F') || 
+                       (colorRequest[actualIndex] >= 'a' && colorRequest[actualIndex] <= 'f')) {
+              switch (colorRequest[actualIndex])   {
+                case 'A': case 'a': digit = 10; break;
+                case 'B': case 'b': digit = 11; break;
+                case 'C': case 'c': digit = 12; break;
+                case 'D': case 'd': digit = 13; break;
+                case 'E': case 'e': digit = 14; break;
+                case 'F': case 'f': digit = 15; break;
+              }
+            }
+
+            intValue = (intValue << (4 * i)) + digit;
+          }
+
+          uint16_t colorValue = to10bit(intValue);
+
+          switch (colourIndex) {
+            case 0: color.red = colorValue; break;
+            case 1: color.green = colorValue; break;
+            case 2: color.blue = colorValue; break;
+          }
+        }
+
+        setLightColor(color);
+        currentLightColor = color;
+      }
+    }
+  }
+
+  createHtmlDisplay(&client, &currentLightColor, request.indexOf("/diagnostics") != -1);
+}
+
+void createHtmlDisplay(WiFiClient* client, const LED_COLORS* currentColor, const bool showDiagnostics) {
+  // Return the response
+  client->println("HTTP/1.1 200 OK");
+  client->println("Content-Type: text/html");
+  client->println(""); //  do not forget this one
+  client->println("<!DOCTYPE HTML>");
+  client->println("<html>");
+
+  client->print("<form action=\"/setColor\">Select lights color:<input type=\"color\" name=\"lightsColor\" value=\"#");
+  char currentColorChars[7];
+  colorsToCharArray(currentColorChars, currentColor);
+  client->print(currentColorChars);
+  client->println("\"><input type=\"submit\"></form>");
+
+  client->println("<a href=\"/diagnostics\"\"><button>Get diagnostics</button></a>");
   // Check if we have asked for the diagnostics.
-  if (request.indexOf("/diagnostics") != -1) {
+  if (showDiagnostics) {
     char lineBreak[] = "<br>";
-    client.print(lineBreak);
-    client.println(lineBreak);
+    client->print(lineBreak);
+    client->println(lineBreak);
     char currentTime[12];
     char alarmTime[13];
     char alarmActive[10];
@@ -205,15 +290,15 @@ void handleLocalHtmlQuery(bool areLightsOn) {
     snprintf(currentTime, 12, "Time: %02d:%02d", currentHour, currentMinute);
     snprintf(alarmTime, 13, "Alarm: %02d:%02d", alarmHour, alarmMinute);
     snprintf(alarmActive, 10, "Active: %d", alarmActive ? 1 : 0);
-    snprintf(lightsOn, 13, "Lights on: %d", areLightsOn ? 1 : 0);
-    client.println(currentTime);
-    client.println(lineBreak);
-    client.println(alarmTime);
-    client.println(lineBreak);
-    client.println(alarmActive);
-    client.println(lineBreak);
-    client.println(lightsOn);
-    client.println(lineBreak);
+    snprintf(lightsOn, 13, "Lights on: %d", *currentColor != lightsOff ? 1 : 0);
+    client->println(currentTime);
+    client->println(lineBreak);
+    client->println(alarmTime);
+    client->println(lineBreak);
+    client->println(alarmActive);
+    client->println(lineBreak);
+    client->println(lightsOn);
+    client->println(lineBreak);
   }
-  client.println("</html>");
+  client->println("</html>");
 }
