@@ -193,70 +193,59 @@ void handleLocalHtmlQuery() {
   // Check if the colour has been set **BEFORE CREATING THE WEB PAGE**
   int indexOfColorRequest = request.indexOf("/setColor");
   if (indexOfColorRequest != -1) {
-    // Begin long-ass process of extracting the colour parameter from the query.
+    // Begin less long-ass process of extracting the colour parameter from the query.
     // This process uses String commands. Eurgh.
-    String sub = request.substring(indexOfColorRequest);
-    int indexOfQuestionMark = sub.indexOf("?");
-    if (indexOfQuestionMark != -1){
-      sub = sub.substring(indexOfQuestionMark + 1);
-      String colorRequest;
-      // There may be other parameters
-      while(sub.indexOf("=") != -1) {
-        // Get first parameter
-        int indexOfEquals = sub.indexOf("=");
-        if (indexOfEquals == -1) {
-          break;
-        }
-        String tempSub = sub.substring(0, indexOfEquals);
-        if (tempSub.equalsIgnoreCase("lightsColor")) {
-          // The string will contain the URL encoded value for '#' (&23). Dont include it.
-          colorRequest = sub.substring(indexOfEquals + 4, indexOfEquals + 4 + 6);
-        }
+    int indexOfColorParameterQuestion = request.indexOf("?lightsColor=");
+    int indexOfColorParameterAmpersand = request.indexOf("&lightsColor=");
+    String colorRequest;
+    if (indexOfColorParameterQuestion != -1) {
+      // Handle getting first query parameter
+      // The string will contain the URL encoded value for '#' (%23). Dont include it.
+      colorRequest = request.substring(indexOfColorParameterQuestion + 13 + 3, indexOfColorParameterQuestion + 13 + 3 + 6);
+    } else if (indexOfColorParameterAmpersand != -1) {
+      // Handle getting the nth query parameter
+      // The string will contain the URL encoded value for '#' (%23). Dont include it.
+      colorRequest = request.substring(indexOfColorParameterAmpersand + 13 + 3, indexOfColorParameterAmpersand + 13 + 3 + 6);
+    } else {
+      // Doesn't exist.
+    }
+
+    if (colorRequest[0] != '\0') {
+      LED_COLORS color = {0, 0, 0};
+      for (int colourIndex = 0; colourIndex < 3; colourIndex++) {
+        uint8_t intValue = 0;
+        uint8_t digit = 0;
         
-        int indexOfAmpersand = sub.indexOf("&");
-        if (indexOfAmpersand == -1) {
-          break;
-        }
-        sub = sub.substring(indexOfAmpersand + 1);
-      }
-
-      if (colorRequest[0] != '\0') {
-        LED_COLORS color = {0, 0, 0};
-        for (int colourIndex = 0; colourIndex < 3; colourIndex++) {
-          uint8_t intValue = 0;
-          uint8_t digit = 0;
-          
-          for (uint8_t i = 0; i < 2; i++) {
-            uint8_t actualIndex = (2 * colourIndex) + i;
-            if (colorRequest[actualIndex] >= '0' && colorRequest[actualIndex] <= '9') {
-              digit = colorRequest[actualIndex] - '0';
-            } else if ((colorRequest[actualIndex] >= 'A' && colorRequest[actualIndex] <= 'F') || 
-                       (colorRequest[actualIndex] >= 'a' && colorRequest[actualIndex] <= 'f')) {
-              switch (colorRequest[actualIndex])   {
-                case 'A': case 'a': digit = 10; break;
-                case 'B': case 'b': digit = 11; break;
-                case 'C': case 'c': digit = 12; break;
-                case 'D': case 'd': digit = 13; break;
-                case 'E': case 'e': digit = 14; break;
-                case 'F': case 'f': digit = 15; break;
-              }
+        for (uint8_t i = 0; i < 2; i++) {
+          uint8_t actualIndex = (2 * colourIndex) + i;
+          if (colorRequest[actualIndex] >= '0' && colorRequest[actualIndex] <= '9') {
+            digit = colorRequest[actualIndex] - '0';
+          } else if ((colorRequest[actualIndex] >= 'A' && colorRequest[actualIndex] <= 'F') || 
+                     (colorRequest[actualIndex] >= 'a' && colorRequest[actualIndex] <= 'f')) {
+            switch (colorRequest[actualIndex])   {
+              case 'A': case 'a': digit = 10; break;
+              case 'B': case 'b': digit = 11; break;
+              case 'C': case 'c': digit = 12; break;
+              case 'D': case 'd': digit = 13; break;
+              case 'E': case 'e': digit = 14; break;
+              case 'F': case 'f': digit = 15; break;
             }
-
-            intValue = (intValue << (4 * i)) + digit;
           }
 
-          uint16_t colorValue = to10bit(intValue);
-
-          switch (colourIndex) {
-            case 0: color.red = colorValue; break;
-            case 1: color.green = colorValue; break;
-            case 2: color.blue = colorValue; break;
-          }
+          intValue = (intValue << (4 * i)) + digit;
         }
 
-        setLightColor(color);
-        currentLightColor = color;
+        uint16_t colorValue = to10bit(intValue);
+
+        switch (colourIndex) {
+          case 0: color.red = colorValue; break;
+          case 1: color.green = colorValue; break;
+          case 2: color.blue = colorValue; break;
+        }
       }
+
+      setLightColor(color);
+      currentLightColor = color;
     }
   }
 
