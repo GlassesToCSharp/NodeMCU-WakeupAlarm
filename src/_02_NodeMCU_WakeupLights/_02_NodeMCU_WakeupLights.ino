@@ -254,41 +254,16 @@ void handleLocalHtmlQuery() {
 }
 
 void createHtmlDisplay(WiFiClient* client, const LED_COLORS* currentColor, const bool showDiagnostics) {
-  // Return the response
-  client->println("HTTP/1.1 200 OK");
-  client->println("Content-Type: text/html");
-  client->println(""); //  do not forget this one
-  client->println("<!DOCTYPE HTML>");
-  client->println("<html>");
-
-  client->print("<form action=\"/setColor\">Select lights color:<input type=\"color\" name=\"lightsColor\" value=\"#");
-  char currentColorChars[7];
-  colorsToCharArray(currentColorChars, currentColor);
-  client->print(currentColorChars);
-  client->println("\"><input type=\"submit\"></form>");
-
-  client->println("<a href=\"/diagnostics\"\"><button>Get diagnostics</button></a>");
+  // Return the response.
+  
   // Check if we have asked for the diagnostics.
+  static char* diagnosticHtml;
   if (showDiagnostics) {
-    char lineBreak[] = "<br>";
-    client->print(lineBreak);
-    client->println(lineBreak);
-    char currentTime[12];
-    char alarmTime[13];
-    char alarmActive[10];
-    char lightsOn[13];
-    snprintf(currentTime, 12, "Time: %02d:%02d", currentHour, currentMinute);
-    snprintf(alarmTime, 13, "Alarm: %02d:%02d", alarmHour, alarmMinute);
-    snprintf(alarmActive, 10, "Active: %d", alarmActive ? 1 : 0);
-    snprintf(lightsOn, 13, "Lights on: %d", *currentColor != lightsOff ? 1 : 0);
-    client->println(currentTime);
-    client->println(lineBreak);
-    client->println(alarmTime);
-    client->println(lineBreak);
-    client->println(alarmActive);
-    client->println(lineBreak);
-    client->println(lightsOn);
-    client->println(lineBreak);
+    diagnosticHtml = generateDiagnosticHtmlContent(currentHour, currentMinute, alarmHour, alarmMinute, alarmActive, *currentColor != lightsOff);
+  } else {
+    diagnosticHtml = (char*)malloc(2);
+    sprintf(diagnosticHtml, " ");
   }
-  client->println("</html>");
+
+  client->println(generateFullHtmlContent(currentColor, (char*)diagnosticHtml));
 }
