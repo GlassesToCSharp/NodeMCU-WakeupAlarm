@@ -195,17 +195,18 @@ void handleLocalHtmlQuery() {
   if (indexOfColorRequest != -1) {
     // Begin less long-ass process of extracting the colour parameter from the query.
     // This process uses String commands. Eurgh.
-    int indexOfColorParameterQuestion = request.indexOf("?lightsColor=");
-    int indexOfColorParameterAmpersand = request.indexOf("&lightsColor=");
+    // The `indexOf` function return the starting index of the searched string. Don't
+    // include the rest of the searched string (13-chars long). The string will also
+    // contain the URL encoded value for '#' (%23, 3-chars long). Dont include it.
+    int indexOfColorValueQuestion = request.indexOf("?lightsColor=") + 13 + 3;
+    int indexOfColorValueAmpersand = request.indexOf("&lightsColor=") + 13 + 3;
     String colorRequest;
-    if (indexOfColorParameterQuestion != -1) {
+    if (indexOfColorValueQuestion != -1) {
       // Handle getting first query parameter
-      // The string will contain the URL encoded value for '#' (%23). Dont include it.
-      colorRequest = request.substring(indexOfColorParameterQuestion + 13 + 3, indexOfColorParameterQuestion + 13 + 3 + 6);
-    } else if (indexOfColorParameterAmpersand != -1) {
+      colorRequest = request.substring(indexOfColorValueQuestion, indexOfColorValueQuestion + 6);
+    } else if (indexOfColorValueAmpersand != -1) {
       // Handle getting the nth query parameter
-      // The string will contain the URL encoded value for '#' (%23). Dont include it.
-      colorRequest = request.substring(indexOfColorParameterAmpersand + 13 + 3, indexOfColorParameterAmpersand + 13 + 3 + 6);
+      colorRequest = request.substring(indexOfColorValueAmpersand, indexOfColorValueAmpersand + 6);
     } else {
       // Doesn't exist.
     }
@@ -217,12 +218,12 @@ void handleLocalHtmlQuery() {
         uint8_t digit = 0;
         
         for (uint8_t i = 0; i < 2; i++) {
-          uint8_t actualIndex = (2 * colourIndex) + i;
-          if (colorRequest[actualIndex] >= '0' && colorRequest[actualIndex] <= '9') {
-            digit = colorRequest[actualIndex] - '0';
-          } else if ((colorRequest[actualIndex] >= 'A' && colorRequest[actualIndex] <= 'F') || 
-                     (colorRequest[actualIndex] >= 'a' && colorRequest[actualIndex] <= 'f')) {
-            switch (colorRequest[actualIndex])   {
+          uint8_t stringIndex = (2 * colourIndex) + i;
+          if (colorRequest[stringIndex] >= '0' && colorRequest[stringIndex] <= '9') {
+            digit = colorRequest[stringIndex] - '0';
+          } else if ((colorRequest[stringIndex] >= 'A' && colorRequest[stringIndex] <= 'F') || 
+                     (colorRequest[stringIndex] >= 'a' && colorRequest[stringIndex] <= 'f')) {
+            switch (colorRequest[stringIndex])   {
               case 'A': case 'a': digit = 10; break;
               case 'B': case 'b': digit = 11; break;
               case 'C': case 'c': digit = 12; break;
