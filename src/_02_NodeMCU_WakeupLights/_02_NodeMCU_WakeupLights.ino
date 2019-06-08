@@ -8,6 +8,18 @@
 #include "pinouts.h"
 #include "wifi_credentials.h"
 
+extern "C" {
+#include "user_interface.h"
+}
+
+void printAvailableMemory(int counter = -1) {
+  if (counter >= 0) {
+    Serial.print(counter);
+  }
+  Serial.print(" Free memory: ");
+  Serial.println(system_get_free_heap_size());
+}
+
 WiFiServer server(80);
 
 const String getUrl = "http://192.168.1.68:3000/conf/wakeup";
@@ -30,6 +42,7 @@ int currentMinute = 00;
 int alarmHour = 12;
 int alarmMinute = 00;
 bool alarmActive = false;
+bool enableAlarm = true;
 
 uint64_t elapsedTime = 0;
 bool alarmDataRequested = false;
@@ -72,6 +85,8 @@ void setup() {
   Serial.print("http://");
   Serial.print(WiFi.localIP());
   Serial.println("/");
+
+  printAvailableMemory();
 }
 
 void loop() {
@@ -156,7 +171,10 @@ void handleWaitingUntilAlarmTime() {
       handleLocalHtmlQuery();
     }
 
-    if ((alarmActive) && (currentHour == alarmHour) && (currentMinute == alarmMinute)) {
+    if ((enableAlarm) && 
+        (alarmActive) && 
+        (currentHour == alarmHour) && 
+        (currentMinute == alarmMinute)) {
       // Turn lights on if the alarm is active and the hour and minute values match the alarm values.
       Serial.println("Activating lights!");
       setLightColor(alarmColor);
@@ -190,6 +208,8 @@ void handleLocalHtmlQuery() {
   Serial.println(request);
   client.flush();
   
+  printAvailableMemory(1);
+  
   // Check if the colour has been set **BEFORE CREATING THE WEB PAGE**
   int indexOfColorRequest = request.indexOf("/setColor");
   if (indexOfColorRequest != -1) {
@@ -200,6 +220,7 @@ void handleLocalHtmlQuery() {
     // contain the URL encoded value for '#' (%23, 3-chars long). Dont include it.
     int indexOfColorValueQuestion = request.indexOf("?lightsColor=") + 13 + 3;
     int indexOfColorValueAmpersand = request.indexOf("&lightsColor=") + 13 + 3;
+  printAvailableMemory(2);
     String colorRequest;
     if (indexOfColorValueQuestion != -1) {
       // Handle getting first query parameter
@@ -210,6 +231,7 @@ void handleLocalHtmlQuery() {
     } else {
       // Doesn't exist.
     }
+  printAvailableMemory(3);
 
     if (colorRequest[0] != '\0') {
       LED_COLORS color = {0, 0, 0};
@@ -248,12 +270,43 @@ void handleLocalHtmlQuery() {
       setLightColor(color);
       currentLightColor = color;
     }
+  printAvailableMemory(4);
+  }
+  
+  printAvailableMemory(5);
+  
+  // Check if the colour has been set **BEFORE CREATING THE WEB PAGE**
+  int indexOfAlarmRequest = request.indexOf("/alarm");
+  if (indexOfAlarmRequest != -1) {
+    // Begin less long-ass process of extracting the colour parameter from the query.
+    // This process uses String commands. Eurgh.
+    // The `indexOf` function return the starting index of the searched string. Don't
+    // include the rest of the searched string (8-chars long). Dont include it.
+    int indexOfAlarmValueQuestion = request.indexOf("?enable=") + 8;
+    int indexOfAlarmValueAmpersand = request.indexOf("&enable=") + 8;
+  printAvailableMemory(6);
+    String alarmOn = alarmOn ? String("on") : String("  ");
+    if (indexOfAlarmValueQuestion != -1) {
+      // Handle getting first query parameter
+      alarmOn = request.substring(indexOfAlarmValueQuestion, indexOfAlarmValueQuestion + 2);
+    } else if (indexOfAlarmValueAmpersand != -1) {
+      // Handle getting the nth query parameter
+      alarmOn = request.substring(indexOfAlarmValueAmpersand, indexOfAlarmValueAmpersand + 2);
+    } else {
+      // Doesn't exist.
+    }
+  printAvailableMemory(7);
+
+    enableAlarm = alarmOn.equalsIgnoreCase("on");
+    
+  printAvailableMemory(8);
   }
 
-  createHtmlDisplay(&client, &currentLightColor, request.indexOf("/diagnostics") != -1);
+  createHtmlDisplay(&client, &currentLightColor, request.indexOf("/diagnostics") != -1, enableAlarm);
+  printAvailableMemory(9);
 }
 
-void createHtmlDisplay(WiFiClient* client, const LED_COLORS* currentColor, const bool showDiagnostics) {
+void createHtmlDisplay(WiFiClient* client, const LED_COLORS* currentColor, const bool showDiagnostics, const bool isAlarmActive) {
   // Return the response.
   
   // Check if we have asked for the diagnostics.
@@ -265,5 +318,5 @@ void createHtmlDisplay(WiFiClient* client, const LED_COLORS* currentColor, const
     sprintf(diagnosticHtml, " ");
   }
 
-  client->println(generateFullHtmlContent(currentColor, (char*)diagnosticHtml));
+  client->println(generateFullHtmlContent(currentColor, (char*)diagnosticHtml, isAlarmActive));
 }
