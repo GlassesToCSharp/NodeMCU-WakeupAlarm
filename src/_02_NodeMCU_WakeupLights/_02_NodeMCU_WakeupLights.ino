@@ -192,7 +192,7 @@ void handleWaitingUntilAlarmTime() {
 
 void handleLocalHtmlQuery() {
   // Check if a client has connected
-  WiFiClient client = server.available();
+  client = server.available();
   if (!client) {
     return;
   }
@@ -302,15 +302,10 @@ void handleLocalHtmlQuery() {
   printAvailableMemory(8);
   }
 
-  createHtmlDisplay(&client, &currentLightColor, enableAlarm);
   printAvailableMemory(9);
-}
+  generateDiagnosticHtmlContent(currentHour, currentMinute, alarmHour, alarmMinute, enableAlarm, &currentLightColor);
 
-void createHtmlDisplay(WiFiClient* client, const LED_COLORS* currentColor, const bool isAlarmActive) {
-  // Return the response.
-  
-  // Check if we have asked for the diagnostics.
-  generateDiagnosticHtmlContent(currentHour, currentMinute, alarmHour, alarmMinute, alarmActive, currentColor);
-
-  client->println(htmlStringBuffer);
+  printAvailableMemory(10);
+  client.println(htmlStringBuffer);
+  printAvailableMemory(11);
 }
