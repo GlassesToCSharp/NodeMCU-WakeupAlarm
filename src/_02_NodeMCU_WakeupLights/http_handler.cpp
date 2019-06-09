@@ -3,11 +3,11 @@
 
 #include "lights_handler.h"
 
-const char html[] PROGMEM = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE HTML>\r\n<html>\r\n<form action=\"/setColor\">Select lights color:<input type=\"color\" name=\"lightsColor\" value=\"#%s\"><input type=\"submit\"></form>\r\n<form action=\"/alarm\"><input type=\"checkbox\" name=\"enable\" %s><input type=\"submit\"></form>\r\n<br>\r\n<br>\r\n<a href=\"/diagnostics\"\"><button>Get diagnostics</button></a>\r\n%s</html>\r\n";
+const char diagnosticHtml[] PROGMEM = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE HTML>\r\n<html>\r\n<br>\r\nTime: %02d:%02d\r\n<br>\r\nAlarm: %02d:%02d\r\n<br>\r\nActive: %d\r\n<br>\r\nLights colour: %s\r\n<br>\r\n</html>\r\n";
 
-const char diagnosticHtml[] PROGMEM = "<br>\r\nTime: %02d:%02d\r\n<br>\r\nAlarm: %02d:%02d\r\n<br>\r\nActive: %d\r\n<br>\r\nLights on: %d\r\n<br>\r\n";
-
-const char checkHtmlTag[] PROGMEM = "checked";
+// These arrays should prevent having to assign new memory every time the HTML code is generated
+char htmlStringBuffer[512]; 
+char lightsColorBuffer[16];
 
 HTTPClient http;
 
@@ -27,16 +27,9 @@ String httpGet(const String url, bool debug = false) {
   }
 }
 
-char* generateDiagnosticHtmlContent(uint8_t currentHour, uint8_t currentMinute, uint8_t alarmHour, uint8_t alarmMinute, bool isAlarmActive, bool areLightsOn) {
-  static char *htmlString = (char*) malloc(strlen(diagnosticHtml) + 1);
-  sprintf(htmlString, diagnosticHtml, currentHour, currentMinute, alarmHour, alarmMinute, isAlarmActive ? 1 : 0, areLightsOn ? 1 : 0);
-  return htmlString;
-}
-
-char* generateFullHtmlContent(const LED_COLORS* currentColor, const char* diagnosticHtml, bool isAlarmEnabled) {
-  static char *htmlString = (char*) malloc(strlen(html) + strlen(diagnosticHtml) + 1);
-  char currentColorChars[7];
-  colorsToCharArray(currentColorChars, currentColor);
-  sprintf(htmlString, (char*)html, currentColorChars, isAlarmEnabled ? checkHtmlTag : "", diagnosticHtml);
-  return htmlString;
+void generateDiagnosticHtmlContent(uint8_t currentHour, uint8_t currentMinute, uint8_t alarmHour, uint8_t alarmMinute, bool isAlarmActive, const LED_COLORS* lightsColor) {
+  memset(htmlStringBuffer, 0, sizeof(htmlStringBuffer));
+  memset(lightsColorBuffer, 0, sizeof(lightsColorBuffer));
+  colorsToCharArray(lightsColorBuffer, lightsColor);
+  sprintf(htmlStringBuffer, diagnosticHtml, currentHour, currentMinute, alarmHour, alarmMinute, isAlarmActive ? 1 : 0, lightsColorBuffer);
 }

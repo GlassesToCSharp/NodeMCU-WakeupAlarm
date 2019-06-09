@@ -302,21 +302,15 @@ void handleLocalHtmlQuery() {
   printAvailableMemory(8);
   }
 
-  createHtmlDisplay(&client, &currentLightColor, request.indexOf("/diagnostics") != -1, enableAlarm);
+  createHtmlDisplay(&client, &currentLightColor, enableAlarm);
   printAvailableMemory(9);
 }
 
-void createHtmlDisplay(WiFiClient* client, const LED_COLORS* currentColor, const bool showDiagnostics, const bool isAlarmActive) {
+void createHtmlDisplay(WiFiClient* client, const LED_COLORS* currentColor, const bool isAlarmActive) {
   // Return the response.
   
   // Check if we have asked for the diagnostics.
-  static char* diagnosticHtml;
-  if (showDiagnostics) {
-    diagnosticHtml = generateDiagnosticHtmlContent(currentHour, currentMinute, alarmHour, alarmMinute, alarmActive, *currentColor != lightsOff);
-  } else {
-    diagnosticHtml = (char*)malloc(2);
-    sprintf(diagnosticHtml, " ");
-  }
+  generateDiagnosticHtmlContent(currentHour, currentMinute, alarmHour, alarmMinute, alarmActive, currentColor);
 
-  client->println(generateFullHtmlContent(currentColor, (char*)diagnosticHtml, isAlarmActive));
+  client->println(htmlStringBuffer);
 }
