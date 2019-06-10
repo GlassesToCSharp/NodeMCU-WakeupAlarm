@@ -5,6 +5,7 @@
 #include "http_handler.h"
 #include "led_handler.h"
 #include "lights_handler.h"
+#include "string_manipulation.h"
 #include "pinouts.h"
 #include "wifi_credentials.h"
 
@@ -190,6 +191,9 @@ void handleWaitingUntilAlarmTime() {
   }
 }
 
+
+const uint16_t requestUrlBufferSize = 128;
+char requestUrlBuffer[requestUrlBufferSize];
 void handleLocalHtmlQuery() {
   // Check if a client has connected
   client = server.available();
@@ -204,30 +208,39 @@ void handleLocalHtmlQuery() {
   }
 
   // Read the first line of the request
-  String request = client.readStringUntil('\r');
-  Serial.println(request);
+  memset(requestUrlBuffer, 0, requestUrlBufferSize);
+  int bytesRead = client.readBytesUntil('\r', requestUrlBuffer, requestUrlBufferSize);
+  Serial.println(requestUrlBuffer);
   client.flush();
+
+  if (bytesRead == 0) {
+    return;
+  }
   
   printAvailableMemory(1);
-  
   // Check if the colour has been set **BEFORE CREATING THE WEB PAGE**
-  int indexOfColorRequest = request.indexOf("/setColor");
+  strcpy_P(inputString1, requestUrlBuffer);
+  strcpy_P(inputString2, apiSetColor);
+  int indexOfColorRequest = basicInstr(inputString1, inputString2);
   if (indexOfColorRequest != -1) {
     // Begin less long-ass process of extracting the colour parameter from the query.
-    // This process uses String commands. Eurgh.
-    // The `indexOf` function return the starting index of the searched string. Don't
-    // include the rest of the searched string (13-chars long). The string will also
-    // contain the URL encoded value for '#' (%23, 3-chars long). Dont include it.
-    int indexOfColorValueQuestion = request.indexOf("?lightsColor=") + 13 + 3;
-    int indexOfColorValueAmpersand = request.indexOf("&lightsColor=") + 13 + 3;
+    // Get the starting index of the searched string. Don't include the rest of the
+    // searched string (13-chars long). The string will also contain the URL encoded
+    // value for '#' (%23, 3-chars long). Dont include it.
+    strcpy_P(inputString2, apiSetColorParamQuestion);
+    int indexOfColorValueQuestion = basicInstr(inputString1, inputString2) + (sizeof(apiSetColorParamQuestion) - 1) + 3;
+    strcpy_P(inputString2, apiSetColorParamAmper);
+    int indexOfColorValueAmpersand = basicInstr(inputString1, inputString2) + (sizeof(apiSetColorParamAmper) - 1) + 3;
   printAvailableMemory(2);
-    String colorRequest;
-    if (indexOfColorValueQuestion != -1) {
+    char* colorRequest;
+    if (indexOfColorValueQuestion >= 16) {
       // Handle getting first query parameter
-      colorRequest = request.substring(indexOfColorValueQuestion, indexOfColorValueQuestion + 6);
-    } else if (indexOfColorValueAmpersand != -1) {
+      colorRequest = basicMidString(inputString1, indexOfColorValueQuestion, 7);
+//      colorRequest = request.substring(indexOfColorValueQuestion, indexOfColorValueQuestion + 6);
+    } else if (indexOfColorValueAmpersand >= 16) {
       // Handle getting the nth query parameter
-      colorRequest = request.substring(indexOfColorValueAmpersand, indexOfColorValueAmpersand + 6);
+      colorRequest = basicMidString(inputString1, indexOfColorValueAmpersand, 7);
+//      colorRequest = request.substring(indexOfColorValueAmpersand, indexOfColorValueAmpersand + 6);
     } else {
       // Doesn't exist.
     }
@@ -276,34 +289,35 @@ void handleLocalHtmlQuery() {
   printAvailableMemory(5);
   
   // Check if the colour has been set **BEFORE CREATING THE WEB PAGE**
-  int indexOfAlarmRequest = request.indexOf("/alarm");
+  strcpy_P(inputString2, apiEnableAlarm);
+  int indexOfAlarmRequest = basicInstr(inputString1, inputString2);
   if (indexOfAlarmRequest != -1) {
     // Begin less long-ass process of extracting the colour parameter from the query.
-    // This process uses String commands. Eurgh.
-    // The `indexOf` function return the starting index of the searched string. Don't
-    // include the rest of the searched string (8-chars long). Dont include it.
-    int indexOfAlarmValueQuestion = request.indexOf("?enable=") + 8;
-    int indexOfAlarmValueAmpersand = request.indexOf("&enable=") + 8;
+    // Get the starting index of the searched string. Don't include the rest of the
+    // searched string (8-chars long). Dont include it.
+    strcpy_P(inputString2, apiEnableAlarmParamQuestion);
+    int indexOfAlarmValueQuestion = basicInstr(inputString1, inputString2) + (sizeof(apiEnableAlarmParamQuestion) - 1);
+    strcpy_P(inputString2, apiEnableAlarmParamAmper);
+    int indexOfAlarmValueAmpersand = basicInstr(inputString1, inputString2) + (sizeof(apiEnableAlarmParamAmper) - 1);
   printAvailableMemory(6);
-    String alarmOn = alarmOn ? String("on") : String("  ");
-    if (indexOfAlarmValueQuestion != -1) {
+    char* alarmOn;
+    if (indexOfAlarmValueQuestion >= 8) {
       // Handle getting first query parameter
-      alarmOn = request.substring(indexOfAlarmValueQuestion, indexOfAlarmValueQuestion + 2);
-    } else if (indexOfAlarmValueAmpersand != -1) {
+      alarmOn = basicMidString(inputString1, indexOfAlarmValueQuestion, 2);
+    } else if (indexOfAlarmValueAmpersand >= 8) {
       // Handle getting the nth query parameter
-      alarmOn = request.substring(indexOfAlarmValueAmpersand, indexOfAlarmValueAmpersand + 2);
+      alarmOn = basicMidString(inputString1, indexOfAlarmValueAmpersand, 2);
     } else {
       // Doesn't exist.
     }
   printAvailableMemory(7);
-
-    enableAlarm = alarmOn.equalsIgnoreCase("on");
+    enableAlarm = alarmOn[0] == '1';
     
   printAvailableMemory(8);
   }
 
   printAvailableMemory(9);
-  generateDiagnosticHtmlContent(currentHour, currentMinute, alarmHour, alarmMinute, enableAlarm, &currentLightColor);
+  generateDiagnosticHtmlContent(currentHour, currentMinute, alarmHour, alarmMinute, enableAlarm, alarmActive, &currentLightColor);
 
   printAvailableMemory(10);
   client.println(htmlStringBuffer);
