@@ -4,12 +4,14 @@
 #include "led_handler.h"
 #include "pinouts.h"
 
-#define FLASH_TIME_PERIOD 2000 // 1000ms per flash cycle
+#define FLASH_TIME_PERIOD 2000 // 2000ms per flash cycle
 
 Ticker ledHandler;
 
 LedState currentState;
 const int led = WIFI_LED;
+
+bool isLedOn = false;
 
 
 void _ledIsr();
@@ -35,14 +37,27 @@ void initialiseLedHandler(LedState state) {
 
 void _ledIsr() {
   // LEDs are active low on NodeMCU (?).
-  if (!digitalRead(led)){
+  if (isLedOn) {
     // do the switching off
+    analogWrite(led, 1023);
+    isLedOn = false;
     _setLedTime(_getLedTimeOff());
   } else {
     // do the switching on
+    analogWrite(led, 1000);
+    isLedOn = true;
     _setLedTime(_getLedTimeOn());
   }
-  digitalWrite(led, !(digitalRead(led)));
+//  if (!digitalRead(led)){
+//    // do the switching off
+//    analogWrite(led, 255);
+//    _setLedTime(_getLedTimeOff());
+//  } else {
+//    // do the switching on
+//    analogWrite(led, 0);
+//    _setLedTime(_getLedTimeOn());
+//  }
+//  digitalWrite(led, !(digitalRead(led)));
 }
 
 void setLedHandlerState(LedState newState) {
