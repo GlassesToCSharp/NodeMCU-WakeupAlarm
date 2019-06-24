@@ -27,7 +27,7 @@ void initialiseLedHandler() {
 void initialiseLedHandler(LedState state) {
   pinMode(led, OUTPUT);
   pinMode(BOARD_LED, OUTPUT);
-  setBoardLedState(true);
+  setBoardLedState(OFF);
 
   setLedHandlerState(state);
 

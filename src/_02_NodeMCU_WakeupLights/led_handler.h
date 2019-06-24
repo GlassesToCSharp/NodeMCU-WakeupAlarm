@@ -1,3 +1,5 @@
+#define ON false
+#define OFF true
 
 enum LedState {
   STATE_IDLE,

@@ -105,7 +105,7 @@ void handleConnectionStatus() {
     Serial.print(".");
     if (WiFi.status() == WL_CONNECT_FAILED) {
       setLedHandlerState(STATE_FAILED);
-      setBoardLedState(false);
+      setBoardLedState(ON);
       while (1) {
         delay(2000);
       }
@@ -124,7 +124,7 @@ void getJsonAndHandleResponse() {
     if (error) {
       Serial.print(F("deserializeJson() failed: "));
       Serial.println(error.c_str());
-      setBoardLedState(false);
+      setBoardLedState(ON);
     } else {
       alarmHour = doc["hour"];
       alarmMinute = doc["minute"];
@@ -141,12 +141,12 @@ void getJsonAndHandleResponse() {
       Serial.println(alarmMinute);
       Serial.print("Active: ");
       Serial.println(alarmActive);
-      setBoardLedState(true);
+      setBoardLedState(OFF);
       alarmDataRequested = true;
     }
   } else {
     Serial.println("Failed to get json");
-    setBoardLedState(false);
+    setBoardLedState(ON);
   }
 }
 
@@ -218,7 +218,7 @@ void handleLocalHtmlQuery() {
   }
   
   printAvailableMemory(1);
-  // Check if the colour has been set **BEFORE CREATING THE WEB PAGE**
+  // Check if the colour has been set
   strcpy_P(inputString1, requestUrlBuffer);
   strcpy_P(inputString2, apiSetColor);
   int indexOfColorRequest = basicInstr(inputString1, inputString2);
@@ -288,7 +288,7 @@ void handleLocalHtmlQuery() {
   
   printAvailableMemory(5);
   
-  // Check if the colour has been set **BEFORE CREATING THE WEB PAGE**
+  // Check if the alarm enabled has been set
   strcpy_P(inputString2, apiEnableAlarm);
   int indexOfAlarmRequest = basicInstr(inputString1, inputString2);
   if (indexOfAlarmRequest != -1) {
