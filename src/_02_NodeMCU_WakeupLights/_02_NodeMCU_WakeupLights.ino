@@ -52,7 +52,8 @@ void handleConnectionStatus();
 void getJsonAndHandleResponse();
 void handleWaitingUntilAlarmTime();
 void handleLocalHtmlQuery();
-void createHtmlDisplay(const LED_COLORS* currentColor, const bool showDiagnostics);
+void handleSetColourRequest();
+void handleEnableAlarmRequest();
 
 void setup() {
   // put your setup code here, to run once:
@@ -175,7 +176,8 @@ void handleWaitingUntilAlarmTime() {
     if ((enableAlarm) && 
         (alarmActive) && 
         (currentHour == alarmHour) && 
-        (currentMinute == alarmMinute)) {
+        (currentMinute == alarmMinute) &&
+        (lightsLitTime == 0)) {
       // Turn lights on if the alarm is active and the hour and minute values match the alarm values.
       Serial.println("Activating lights!");
       setLightColor(alarmColor);
@@ -218,7 +220,26 @@ void handleLocalHtmlQuery() {
   }
   
   printAvailableMemory(1);
+  
   // Check if the colour has been set
+  // /setColor?lightsColor=#000000
+  handleSetColourRequest();
+  
+  printAvailableMemory(5);
+  
+  // Check if the alarm enabled has been set
+  // /alarm?enable=1
+  handleEnableAlarmRequest();
+
+  printAvailableMemory(9);
+  generateDiagnosticHtmlContent(currentHour, currentMinute, alarmHour, alarmMinute, enableAlarm, alarmActive, &currentLightColor);
+
+  printAvailableMemory(10);
+  client.println(htmlStringBuffer);
+  printAvailableMemory(11);
+}
+
+void handleSetColourRequest() {
   strcpy_P(inputString1, requestUrlBuffer);
   strcpy_P(inputString2, apiSetColor);
   int indexOfColorRequest = basicInstr(inputString1, inputString2);
@@ -231,20 +252,19 @@ void handleLocalHtmlQuery() {
     int indexOfColorValueQuestion = basicInstr(inputString1, inputString2) + (sizeof(apiSetColorParamQuestion) - 1) + 3;
     strcpy_P(inputString2, apiSetColorParamAmper);
     int indexOfColorValueAmpersand = basicInstr(inputString1, inputString2) + (sizeof(apiSetColorParamAmper) - 1) + 3;
-  printAvailableMemory(2);
+    
+    printAvailableMemory(2);
     char* colorRequest;
     if (indexOfColorValueQuestion >= 16) {
       // Handle getting first query parameter
       colorRequest = basicMidString(inputString1, indexOfColorValueQuestion, 7);
-//      colorRequest = request.substring(indexOfColorValueQuestion, indexOfColorValueQuestion + 6);
     } else if (indexOfColorValueAmpersand >= 16) {
       // Handle getting the nth query parameter
       colorRequest = basicMidString(inputString1, indexOfColorValueAmpersand, 7);
-//      colorRequest = request.substring(indexOfColorValueAmpersand, indexOfColorValueAmpersand + 6);
     } else {
       // Doesn't exist.
     }
-  printAvailableMemory(3);
+    printAvailableMemory(3);
 
     if (colorRequest[0] != '\0') {
       LED_COLORS color = {0, 0, 0};
@@ -254,10 +274,10 @@ void handleLocalHtmlQuery() {
         
         for (uint8_t i = 0; i < 2; i++) {
           uint8_t stringIndex = (2 * colourIndex) + i;
-          if (colorRequest[stringIndex] >= '0' && colorRequest[stringIndex] <= '9') {
+          if ((colorRequest[stringIndex] >= '0') && (colorRequest[stringIndex] <= '9')) {
             digit = colorRequest[stringIndex] - '0';
-          } else if ((colorRequest[stringIndex] >= 'A' && colorRequest[stringIndex] <= 'F') || 
-                     (colorRequest[stringIndex] >= 'a' && colorRequest[stringIndex] <= 'f')) {
+          } else if (((colorRequest[stringIndex] >= 'A') && (colorRequest[stringIndex] <= 'F')) || 
+                     ((colorRequest[stringIndex] >= 'a') && (colorRequest[stringIndex] <= 'f'))) {
             switch (colorRequest[stringIndex])   {
               case 'A': case 'a': digit = 10; break;
               case 'B': case 'b': digit = 11; break;
@@ -283,12 +303,11 @@ void handleLocalHtmlQuery() {
       setLightColor(color);
       currentLightColor = color;
     }
-  printAvailableMemory(4);
+    printAvailableMemory(4);
   }
-  
-  printAvailableMemory(5);
-  
-  // Check if the alarm enabled has been set
+}
+
+void handleEnableAlarmRequest() {
   strcpy_P(inputString2, apiEnableAlarm);
   int indexOfAlarmRequest = basicInstr(inputString1, inputString2);
   if (indexOfAlarmRequest != -1) {
@@ -299,7 +318,8 @@ void handleLocalHtmlQuery() {
     int indexOfAlarmValueQuestion = basicInstr(inputString1, inputString2) + (sizeof(apiEnableAlarmParamQuestion) - 1);
     strcpy_P(inputString2, apiEnableAlarmParamAmper);
     int indexOfAlarmValueAmpersand = basicInstr(inputString1, inputString2) + (sizeof(apiEnableAlarmParamAmper) - 1);
-  printAvailableMemory(6);
+    printAvailableMemory(6);
+    
     char* alarmOn;
     if (indexOfAlarmValueQuestion >= 8) {
       // Handle getting first query parameter
@@ -310,16 +330,39 @@ void handleLocalHtmlQuery() {
     } else {
       // Doesn't exist.
     }
-  printAvailableMemory(7);
+    printAvailableMemory(7);
     enableAlarm = alarmOn[0] == '1';
     
-  printAvailableMemory(8);
+    printAvailableMemory(8);
   }
+}
 
-  printAvailableMemory(9);
-  generateDiagnosticHtmlContent(currentHour, currentMinute, alarmHour, alarmMinute, enableAlarm, alarmActive, &currentLightColor);
-
-  printAvailableMemory(10);
-  client.println(htmlStringBuffer);
-  printAvailableMemory(11);
+void handleEnableAlarmRequest() {
+  strcpy_P(inputString2, apiEnableAlarm);
+  int indexOfAlarmRequest = basicInstr(inputString1, inputString2);
+  if (indexOfAlarmRequest != -1) {
+    // Begin less long-ass process of extracting the colour parameter from the query.
+    // Get the starting index of the searched string. Don't include the rest of the
+    // searched string (8-chars long). Dont include it.
+    strcpy_P(inputString2, apiEnableAlarmParamQuestion);
+    int indexOfAlarmValueQuestion = basicInstr(inputString1, inputString2) + (sizeof(apiEnableAlarmParamQuestion) - 1);
+    strcpy_P(inputString2, apiEnableAlarmParamAmper);
+    int indexOfAlarmValueAmpersand = basicInstr(inputString1, inputString2) + (sizeof(apiEnableAlarmParamAmper) - 1);
+    printAvailableMemory(6);
+    
+    char* alarmOn;
+    if (indexOfAlarmValueQuestion >= 8) {
+      // Handle getting first query parameter
+      alarmOn = basicMidString(inputString1, indexOfAlarmValueQuestion, 2);
+    } else if (indexOfAlarmValueAmpersand >= 8) {
+      // Handle getting the nth query parameter
+      alarmOn = basicMidString(inputString1, indexOfAlarmValueAmpersand, 2);
+    } else {
+      // Doesn't exist.
+    }
+    printAvailableMemory(7);
+    enableAlarm = alarmOn[0] == '1';
+    
+    printAvailableMemory(8);
+  }
 }
