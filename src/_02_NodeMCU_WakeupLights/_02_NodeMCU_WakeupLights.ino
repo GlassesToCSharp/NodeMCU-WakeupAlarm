@@ -35,7 +35,6 @@ LED_COLORS currentLightColor = {0, 0, 0};
 
 // 4 objects, one is an object containing two objects. Add 50 bytes to it.
 const size_t capacity = JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(4) + 50;
-DynamicJsonDocument doc(capacity);
 
 // Set the current time to be 12:00pm (midday)
 int currentHour = 12;
@@ -122,6 +121,7 @@ void getJsonAndHandleResponse() {
   String json = httpGet(getUrl);
   if (json != "") {
     Serial.println(json);
+    DynamicJsonDocument doc(capacity);
     DeserializationError error = deserializeJson(doc, json);
     if (error) {
       Serial.print(F("deserializeJson() failed: "));
@@ -233,15 +233,18 @@ void handleLocalHtmlQuery() {
   handleEnableAlarmRequest();
 
   printAvailableMemory(9);
+  // Check if we are received a configuration request
+  // /getConfiguration
   if (handleGetConfigurationRequest()) {
     respondWithJsonContent(currentHour, currentMinute, 
       alarmHour, alarmMinute, enableAlarm, alarmActive, &currentLightColor);
   } else {
-    generateDiagnosticHtmlContent(currentHour, currentMinute, alarmHour, alarmMinute, enableAlarm, alarmActive, &currentLightColor);
-    printAvailableMemory(10);
-    client.println(htmlStringBuffer);
+    generateDiagnosticHtmlContent(currentHour, currentMinute, 
+      alarmHour, alarmMinute, enableAlarm, alarmActive, &currentLightColor);
   }
-
+  
+  printAvailableMemory(10);
+  client.println(htmlStringBuffer);
   printAvailableMemory(11);
 }
 

@@ -4,7 +4,11 @@
 
 #include "lights_handler.h"
 
-const char diagnosticHtml[] PROGMEM = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE HTML>\r\n<html>\r\n<br>\r\nTime: %02d:%02d\r\n<br>\r\nAlarm: %02d:%02d\r\n<br>\r\nAlarm enabled: %d\r\n<br>\r\nActive: %d\r\n<br>\r\nLights colour: %s\r\n<br>\r\n</html>\r\n";
+const char responseHeaders[] PROGMEM = "HTTP/1.1 200 OK\r\nContent-Type: %s\r\n\r\n";
+const char diagnosticHtml[] PROGMEM = "<!DOCTYPE HTML>\r\n<html>\r\n<br>\r\nTime: %02d:%02d\r\n<br>\r\nAlarm: %02d:%02d\r\n<br>\r\nAlarm enabled: %d\r\n<br>\r\nActive: %d\r\n<br>\r\nLights colour: %s\r\n<br>\r\n</html>\r\n";
+const char contentTypeHtml[] PROGMEM = "text/html";
+const char contentTypeJson[] PROGMEM = "application/json";
+const char response[] PROGMEM = "%s%s"; // Headers followed by body
 
 // These arrays should prevent having to assign new memory every time the HTML code is generated
 const uint16_t htmlStringBufferSize = 512;
@@ -25,8 +29,7 @@ char apiEnableAlarmParamAmper[9] PROGMEM = "&enable=";
 char apiGetCurrentConfiguration[18] PROGMEM = "/getConfiguration";
 
 // The additional 192 is required according to the documentation.
-const size_t serializedJsonCapacity = 2*JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(5) + 192;
-DynamicJsonDocument serializedJson(serializedJsonCapacity);
+const size_t serializedJsonCapacity = (2 * JSON_OBJECT_SIZE(2)) + JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(5) + 192;
 
 HTTPClient http;
 WiFiClient client;
@@ -50,10 +53,16 @@ String httpGet(const String url, bool debug = false) {
 void generateDiagnosticHtmlContent(const uint8_t currentHour, const uint8_t currentMinute, 
     const uint8_t alarmHour, const uint8_t alarmMinute, const bool isAlarmEnabled, 
     const bool isAlarmActive, const LED_COLORS* lightsColor) {
+  char headersString[60];
+  sprintf(headersString, responseHeaders, contentTypeHtml);
+  
   memset(htmlStringBuffer, resetBufferValue, htmlStringBufferSize);
   memset(lightsColorBuffer, resetBufferValue, lightsColorBufferSize);
   colorsToCharArray(lightsColorBuffer, lightsColor);
-  sprintf(htmlStringBuffer, diagnosticHtml, currentHour, currentMinute, alarmHour, alarmMinute, isAlarmEnabled ? 1 : 0, isAlarmActive ? 1 : 0, lightsColorBuffer);
+
+  char htmlBody[500];
+  sprintf(htmlBody, diagnosticHtml, currentHour, currentMinute, alarmHour, alarmMinute, isAlarmEnabled ? 1 : 0, isAlarmActive ? 1 : 0, lightsColorBuffer);
+  sprintf(htmlStringBuffer, response, headersString, htmlBody);
 }
 
 // Sends in the following JSON format:
@@ -76,10 +85,15 @@ void generateDiagnosticHtmlContent(const uint8_t currentHour, const uint8_t curr
 //  }
 void respondWithJsonContent(const uint8_t currentHour, const uint8_t currentMinute, 
     const uint8_t alarmHour, const uint8_t alarmMinute, const bool isAlarmEnabled, 
-    const bool isAlarmActive, const LED_COLORS* lightsColor) {  
-  // The additional 192 is required according to the documentation.
-//  const size_t serializedJsonCapacity = 2*JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(5) + 192;
-//  DynamicJsonDocument serializedJson(serializedJsonCapacity);
+    const bool isAlarmActive, const LED_COLORS* lightsColor) {
+  DynamicJsonDocument serializedJson(serializedJsonCapacity);
+  memset(htmlStringBuffer, resetBufferValue, htmlStringBufferSize);
+
+  // 1. Create headers.
+  char headersString[60];
+  sprintf(headersString, responseHeaders, contentTypeJson);
+  
+  // 2. Get JSON body to append
   
   JsonObject currentTime = serializedJson.createNestedObject("currentTime");
   currentTime["hour"] = currentHour;
@@ -95,6 +109,11 @@ void respondWithJsonContent(const uint8_t currentHour, const uint8_t currentMinu
   lightColour["red"] = to8bit(lightsColor->red);
   lightColour["green"] = to8bit(lightsColor->green);
   lightColour["blue"] = to8bit(lightsColor->blue);
-  
-  serializeJson(serializedJson, client);
+
+  // Create char array
+  char jsonBody[150];
+  serializeJson(serializedJson, jsonBody, 150);
+
+  // 3. Create full response (complete with headers from 1. and JSON body from 2.
+  sprintf(htmlStringBuffer, response, headersString, jsonBody);
 }
