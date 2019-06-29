@@ -54,6 +54,7 @@ void handleWaitingUntilAlarmTime();
 void handleLocalHtmlQuery();
 void handleSetColourRequest();
 void handleEnableAlarmRequest();
+bool handleGetConfigurationRequest();
 
 void setup() {
   // put your setup code here, to run once:
@@ -232,10 +233,15 @@ void handleLocalHtmlQuery() {
   handleEnableAlarmRequest();
 
   printAvailableMemory(9);
-  generateDiagnosticHtmlContent(currentHour, currentMinute, alarmHour, alarmMinute, enableAlarm, alarmActive, &currentLightColor);
+  if (handleGetConfigurationRequest()) {
+    respondWithJsonContent(currentHour, currentMinute, 
+      alarmHour, alarmMinute, enableAlarm, alarmActive, &currentLightColor);
+  } else {
+    generateDiagnosticHtmlContent(currentHour, currentMinute, alarmHour, alarmMinute, enableAlarm, alarmActive, &currentLightColor);
+    printAvailableMemory(10);
+    client.println(htmlStringBuffer);
+  }
 
-  printAvailableMemory(10);
-  client.println(htmlStringBuffer);
   printAvailableMemory(11);
 }
 
@@ -337,32 +343,11 @@ void handleEnableAlarmRequest() {
   }
 }
 
-void handleEnableAlarmRequest() {
-  strcpy_P(inputString2, apiEnableAlarm);
-  int indexOfAlarmRequest = basicInstr(inputString1, inputString2);
-  if (indexOfAlarmRequest != -1) {
-    // Begin less long-ass process of extracting the colour parameter from the query.
-    // Get the starting index of the searched string. Don't include the rest of the
-    // searched string (8-chars long). Dont include it.
-    strcpy_P(inputString2, apiEnableAlarmParamQuestion);
-    int indexOfAlarmValueQuestion = basicInstr(inputString1, inputString2) + (sizeof(apiEnableAlarmParamQuestion) - 1);
-    strcpy_P(inputString2, apiEnableAlarmParamAmper);
-    int indexOfAlarmValueAmpersand = basicInstr(inputString1, inputString2) + (sizeof(apiEnableAlarmParamAmper) - 1);
-    printAvailableMemory(6);
-    
-    char* alarmOn;
-    if (indexOfAlarmValueQuestion >= 8) {
-      // Handle getting first query parameter
-      alarmOn = basicMidString(inputString1, indexOfAlarmValueQuestion, 2);
-    } else if (indexOfAlarmValueAmpersand >= 8) {
-      // Handle getting the nth query parameter
-      alarmOn = basicMidString(inputString1, indexOfAlarmValueAmpersand, 2);
-    } else {
-      // Doesn't exist.
-    }
-    printAvailableMemory(7);
-    enableAlarm = alarmOn[0] == '1';
-    
-    printAvailableMemory(8);
-  }
+bool handleGetConfigurationRequest() {
+  strcpy_P(inputString2, apiGetCurrentConfiguration);
+  int indexOfConfigurationRequest = basicInstr(inputString1, inputString2);
+  // Getting the configuration doesn't require checking for query parameters
+  // because there aren't any. Simply acknowledge that a request for the
+  // configuration has been made.
+  return indexOfConfigurationRequest != -1;
 }
