@@ -44,7 +44,7 @@ void _ledIsr() {
     _setLedTime(_getLedTimeOff());
   } else {
     // do the switching on
-    analogWrite(led, 1000);
+    analogWrite(led, 1010);
     isLedOn = true;
     _setLedTime(_getLedTimeOn());
   }
