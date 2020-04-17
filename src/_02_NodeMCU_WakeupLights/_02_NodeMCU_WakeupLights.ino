@@ -23,7 +23,7 @@ void printAvailableMemory(int counter = -1) {
 
 WiFiServer server(80);
 
-const String getUrl = "http://192.168.1.68:3000/conf/wakeup";
+const String getUrl = "http://192.168.1.77:3000/conf/wakeup";
 // Set the query time as 2am
 const uint8_t queryHour = 2;
 const uint8_t queryMinute = 0;
