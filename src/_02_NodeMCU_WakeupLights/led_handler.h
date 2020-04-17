@@ -1,3 +1,6 @@
+#ifndef LED_HANDLER_H_INCLUDED
+#define LED_HANDLER_H_INCLUDED
+
 #define ON false
 #define OFF true
 
@@ -14,3 +17,5 @@ extern void initialiseLedHandler();
 extern void initialiseLedHandler(LedState state);
 extern void setLedHandlerState(LedState newState);
 extern void setBoardLedState(bool enable);
+
+#endif

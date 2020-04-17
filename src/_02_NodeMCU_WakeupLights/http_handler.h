@@ -1,3 +1,6 @@
+#ifndef HTTP_HANDLER_H_INCLUDED
+#define HTTP_HANDLER_H_INCLUDED
+
 #include "lights_handler.h"
 #include <ESP8266HTTPClient.h>
 
@@ -18,3 +21,5 @@ extern void generateDiagnosticHtmlContent(const uint8_t currentHour, const uint8
 extern void respondWithJsonContent(const uint8_t currentHour, const uint8_t currentMinute, 
     const uint8_t alarmHour, const uint8_t alarmMinute, const bool isAlarmEnabled, 
     const bool isAlarmActive, const LED_COLORS* lightsColor);
+
+#endif

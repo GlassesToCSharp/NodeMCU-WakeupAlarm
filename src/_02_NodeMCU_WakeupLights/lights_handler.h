@@ -1,5 +1,5 @@
-#ifndef PINOUTS_H_INCLUDED
-#define PINOUTS_H_INCLUDED
+#ifndef LIGHTS_HANDLER_H_INCLUDED
+#define LIGHTS_HANDLER_H_INCLUDED
 
 typedef struct {
   uint16_t red;
