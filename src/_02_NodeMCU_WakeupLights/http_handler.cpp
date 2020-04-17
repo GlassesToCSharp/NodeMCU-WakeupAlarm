@@ -35,7 +35,7 @@ HTTPClient http;
 WiFiClient client;
 
 // I don't like using String...
-String httpGet(const String url, bool debug = false) {
+String httpGet(const String url) {
   // End the connecttion even if never started.
   http.end();
   // Begin a new connection.
