@@ -1,4 +1,5 @@
 #include <ArduinoJson.h>
+#include <ESP8266Ping.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 
@@ -23,7 +24,9 @@ void printAvailableMemory(int counter = -1) {
 
 WiFiServer server(80);
 
-const String getUrl = "http://192.168.1.77:3000/conf/wakeup";
+// The URL adderss cannot have "000" in the IP address. This needs to be
+// determined later.
+String getUrl = "http://192.168.001.000:3000/conf/wakeup";
 // Set the query time as 2am
 const uint8_t queryHour = 2;
 const uint8_t queryMinute = 0;
@@ -83,26 +86,76 @@ void setup() {
   Serial.println("Server started");
 
   // Print the IP address
+  IPAddress pLocalIp = WiFi.localIP();
   Serial.print("Use this URL to connect: ");
   Serial.print("http://");
-  Serial.print(WiFi.localIP());
+  Serial.print(pLocalIp);
   Serial.println("/");
 
   // TODO: Auto detect the correct IP address of the server.
   // Try ping-ing every IP address on the LAN for a matching
   // result. If requesting alarm data from the pinged address
   // works, this is the correct address.
+  // Start the detection at x.x.x.2. IP addresses never start
+  // at 0, and the first address is the router's address.
+  for (uint8_t i = 2; i < 255; i++) {
+    IPAddress *pIp = new IPAddress(192, 168, 1, i);
+    // If a new instance has not been created, fail the entire
+    // process.
+    if (pIp == NULL) {
+      setLedHandlerState(STATE_FAILED);
+      setBoardLedState(ON);
+      while (1) {
+        delay(2000);
+      }
+      // Do not pass this point until reset.
+    }
+    
+    if ((pLocalIp != *pIp) && Ping.ping(*pIp)) {
+      Serial.print("Ping successful: ");
+      Serial.println((*pIp).toString());
+      // Assign IP address value.
+      if (i >= 100) {
+        getUrl[19] = (char)((uint8_t)(i / 100)) + '0';
+      }
+      if (i >= 10) {
+        getUrl[20] = (char)((uint8_t)((i % 100) / 10)) + '0';
+      }
+      getUrl[21] = (char)((uint8_t)(i % 10)) + '0';
+      
+      // Get the JSON response with alarm data.
+      Serial.print("Requesting to: ");
+      Serial.println(getUrl);
+      getJsonAndHandleResponse();
+      
+      // Check that data has been received.
+      if (alarmDataRequested) {
+        delete pIp;
+        pIp = NULL;
+        break;
+      } else {
+        getUrl[19] = '0';
+        getUrl[20] = '0';
+        getUrl[21] = '0';
+      }
+    }
+
+    delete pIp;
+    pIp = NULL;
+  }
+
+  Serial.println("URL to use:");
+  Serial.println(getUrl);
 
   printAvailableMemory();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  alarmDataRequested = false;
-  getJsonAndHandleResponse();
-
   // Wait until the right amount of time has elapsed before querying the server again.
   handleWaitingUntilAlarmTime();
+  
+  alarmDataRequested = false;
+  getJsonAndHandleResponse();
 }
 
 void handleConnectionStatus() {
