@@ -88,6 +88,11 @@ void setup() {
   Serial.print(WiFi.localIP());
   Serial.println("/");
 
+  // TODO: Auto detect the correct IP address of the server.
+  // Try ping-ing every IP address on the LAN for a matching
+  // result. If requesting alarm data from the pinged address
+  // works, this is the correct address.
+
   printAvailableMemory();
 }
 
