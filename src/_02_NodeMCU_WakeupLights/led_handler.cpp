@@ -32,7 +32,9 @@ void initialiseLedHandler(LedState state) {
   setLedHandlerState(state);
 
   _ledIsr();
+#ifdef DEBUG
   Serial.println("LED Handler initialised.");
+#endif
 }
 
 void _ledIsr() {
@@ -48,24 +50,16 @@ void _ledIsr() {
     isLedOn = true;
     _setLedTime(_getLedTimeOn());
   }
-//  if (!digitalRead(led)){
-//    // do the switching off
-//    analogWrite(led, 255);
-//    _setLedTime(_getLedTimeOff());
-//  } else {
-//    // do the switching on
-//    analogWrite(led, 0);
-//    _setLedTime(_getLedTimeOn());
-//  }
-//  digitalWrite(led, !(digitalRead(led)));
 }
 
 void setLedHandlerState(LedState newState) {
   currentState = newState;
+#ifdef DEBUG
   Serial.print("LED time on: ");
   Serial.println(_getLedTimeOn());
   Serial.print("LED time off: ");
   Serial.println(_getLedTimeOff());
+#endif
 }
 
 void _setLedTime(int milliseconds) {
@@ -80,13 +74,13 @@ uint32_t _getLedTimeOn() {
   switch(currentState) {
     case STATE_FAILED:
     case STATE_IDLE:
-    return (uint32_t)(FLASH_TIME_PERIOD / 2);
+      return (uint32_t)(FLASH_TIME_PERIOD / 2);
 
     case STATE_CONNECTING:
-    return 200;
+      return 200;
 
     case STATE_CONNECTED:
-    return 50;
+      return 50;
   }
 
   return 0;

@@ -3,6 +3,10 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 
+// Uncomment the line below to see the output to the serial port. Output to the
+// serial port should be disabled when not in Debug mode.
+//#define DEBUG
+
 #include "http_handler.h"
 #include "led_handler.h"
 #include "lights_handler.h"
@@ -15,11 +19,13 @@ extern "C" {
 }
 
 void printAvailableMemory(int counter = -1) {
+#ifdef DEBUG
   if (counter >= 0) {
     Serial.print(counter);
   }
   Serial.print(" Free memory: ");
   Serial.println(system_get_free_heap_size());
+#endif
 }
 
 WiFiServer server(80);
@@ -60,37 +66,49 @@ bool handleGetConfigurationRequest();
 
 void setup() {
   // put your setup code here, to run once:
+#ifdef DEBUG
   Serial.begin(115200);
   delay(10);
+#endif
   initialiseLedHandler();
   initialiseLights();
+#ifdef DEBUG
   Serial.println("Testing light...");
+#endif
   delay(5000);
   setLedHandlerState(STATE_CONNECTING);
 
   // Connect to WiFi network
+#ifdef DEBUG
   Serial.println();
   Serial.println();
   Serial.print("Connecting to ");
   Serial.println(ssid);
+#endif
 
   WiFi.begin(ssid, password);
 
   handleConnectionStatus();
 
+#ifdef DEBUG
   Serial.println("");
   Serial.println("WiFi connected");
+#endif
 
   // Initialise server
   server.begin();
+#ifdef DEBUG
   Serial.println("Server started");
+#endif
 
   // Print the IP address
   IPAddress pLocalIp = WiFi.localIP();
+#ifdef DEBUG
   Serial.print("Use this URL to connect: ");
   Serial.print("http://");
   Serial.print(pLocalIp);
   Serial.println("/");
+#endif
 
   // TODO: Auto detect the correct IP address of the server.
   // Try ping-ing every IP address on the LAN for a matching
@@ -112,8 +130,10 @@ void setup() {
     }
     
     if ((pLocalIp != *pIp) && Ping.ping(*pIp)) {
+#ifdef DEBUG
       Serial.print("Ping successful: ");
       Serial.println((*pIp).toString());
+#endif
       // Assign IP address value.
       if (i >= 100) {
         getUrl[19] = (char)((uint8_t)(i / 100)) + '0';
@@ -124,8 +144,10 @@ void setup() {
       getUrl[21] = (char)((uint8_t)(i % 10)) + '0';
       
       // Get the JSON response with alarm data.
+#ifdef DEBUG
       Serial.print("Requesting to: ");
       Serial.println(getUrl);
+#endif
       getJsonAndHandleResponse();
       
       // Check that data has been received.
@@ -144,8 +166,10 @@ void setup() {
     pIp = NULL;
   }
 
-  Serial.println("URL to use:");
+#ifdef DEBUG
+  Serial.println("Server URL to use:");
   Serial.println(getUrl);
+#endif
 
   printAvailableMemory();
 }
@@ -161,7 +185,9 @@ void loop() {
 void handleConnectionStatus() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
+#ifdef DEBUG
     Serial.print(".");
+#endif
     if (WiFi.status() == WL_CONNECT_FAILED) {
       setLedHandlerState(STATE_FAILED);
       setBoardLedState(ON);
@@ -177,36 +203,45 @@ void handleConnectionStatus() {
 
 void getJsonAndHandleResponse() {
   String json = httpGet(getUrl);
-  if (json != "") {
-    Serial.println(json);
-    DynamicJsonDocument doc(capacity);
-    DeserializationError error = deserializeJson(doc, json);
-    if (error) {
-      Serial.print(F("deserializeJson() failed: "));
-      Serial.println(error.c_str());
-      setBoardLedState(ON);
-    } else {
-      alarmHour = doc["hour"];
-      alarmMinute = doc["minute"];
-      alarmActive = doc["active"];
-      currentHour = doc["currentTime"]["hour"];
-      currentMinute = doc["currentTime"]["minute"];
-      Serial.print("Current time: ");
-      Serial.print(currentHour);
-      Serial.print(":");
-      Serial.println(currentMinute);
-      Serial.print("Hour: ");
-      Serial.println(alarmHour);
-      Serial.print("Minute: ");
-      Serial.println(alarmMinute);
-      Serial.print("Active: ");
-      Serial.println(alarmActive);
-      setBoardLedState(OFF);
-      alarmDataRequested = true;
-    }
-  } else {
-    Serial.println("Failed to get json");
+  if (json == "") {
+#ifdef DEBUG
+    Serial.println(F("Failed to get json"));
+#endif
     setBoardLedState(ON);
+    return;
+  }
+
+#ifdef DEBUG
+  Serial.println(json);
+#endif
+  DynamicJsonDocument doc(capacity);
+  DeserializationError error = deserializeJson(doc, json);
+  if (error) {
+#ifdef DEBUG
+    Serial.print(F("deserializeJson() failed: "));
+    Serial.println(error.c_str());
+#endif
+    setBoardLedState(ON);
+  } else {
+    alarmHour = doc["hour"];
+    alarmMinute = doc["minute"];
+    alarmActive = doc["active"];
+    currentHour = doc["currentTime"]["hour"];
+    currentMinute = doc["currentTime"]["minute"];
+#ifdef DEBUG
+    Serial.print("Current time: ");
+    Serial.print(currentHour);
+    Serial.print(":");
+    Serial.println(currentMinute);
+    Serial.print("Hour: ");
+    Serial.println(alarmHour);
+    Serial.print("Minute: ");
+    Serial.println(alarmMinute);
+    Serial.print("Active: ");
+    Serial.println(alarmActive);
+#endif
+    setBoardLedState(OFF);
+    alarmDataRequested = true;
   }
 }
 
@@ -238,13 +273,17 @@ void handleWaitingUntilAlarmTime() {
         (currentMinute == alarmMinute) &&
         (lightsLitTime == 0)) {
       // Turn lights on if the alarm is active and the hour and minute values match the alarm values.
-      Serial.println("Activating lights!");
+#ifdef DEBUG
+      Serial.println(F("Activating lights!"));
+#endif
       setLightColor(alarmColor);
       currentLightColor = alarmColor;
       lightsLitTime = millis();
     } else if ((lightsLitTime > 0) && (millis() - lightsLitTime > millisecondsSwitchedOn)) {
       // Turn the lights off if they are turned of (determined by lightLitTime being > 0) and at least 10mins has elapsed since turned on.
-      Serial.println("Turning lights off.");
+#ifdef DEBUG
+      Serial.println(F("Turning lights off."));
+#endif
       setLightColor(lightsOff);
       currentLightColor = lightsOff;
       lightsLitTime = 0;
@@ -263,7 +302,9 @@ void handleLocalHtmlQuery() {
   }
 
   // Wait until the client sends some data
+#ifdef DEBUG
   Serial.println("new client");
+#endif
   while (!client.available()) {
     delay(1);
   }
