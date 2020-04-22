@@ -36,20 +36,34 @@ String getUrl = "http://192.168.001.000:3000/conf/wakeup";
 // Set the query time as 2am
 const uint8_t queryHour = 2;
 const uint8_t queryMinute = 0;
-const uint32_t millisecondsSwitchedOn = 600000; // 10 mins
+const uint32_t millisecondsSwitchedOnFactor = 60000; // 1 min
 
 const LED_COLORS alarmColor = { .red = 1023, .green = 1023, .blue = 0}; // In RGB format, 0-1023
 const LED_COLORS lightsOff = {0, 0, 0}; // Lights off!
 LED_COLORS currentLightColor = {0, 0, 0};
 
-// 4 objects, one is an object containing two objects. Add 50 bytes to it.
-const size_t capacity = JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(4) + 50;
+// 4 objects, one is an object containing two objects. Add 52 bytes to it for strings duplication.
+// See https://arduinojson.org/v6/assistant/ for more information. Example JSON expected to receive:
+//  {
+//      "currentTime": {
+//          "hour": 12,
+//          "minute": 28
+//      },
+//      "hour": 16,
+//      "minute": 30,
+//      "duration": 10,
+//      "active": true
+//  }
+const size_t capacity = JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(5) + 52;
+StaticJsonDocument<capacity> doc;
+DeserializationError deserializationError;
 
 // Set the current time to be 12:00pm (midday)
 int currentHour = 12;
 int currentMinute = 00;
 int alarmHour = 12;
 int alarmMinute = 00;
+int alarmDuration = 10; // Default value
 bool alarmActive = false;
 bool enableAlarm = true;
 
@@ -214,17 +228,17 @@ void getJsonAndHandleResponse() {
 #ifdef DEBUG
   Serial.println(json);
 #endif
-  DynamicJsonDocument doc(capacity);
-  DeserializationError error = deserializeJson(doc, json);
-  if (error) {
+  deserializationError = deserializeJson(doc, json);
+  if (deserializationError) {
 #ifdef DEBUG
     Serial.print(F("deserializeJson() failed: "));
-    Serial.println(error.c_str());
+    Serial.println(deserializationError.c_str());
 #endif
     setBoardLedState(ON);
   } else {
     alarmHour = doc["hour"];
     alarmMinute = doc["minute"];
+    alarmDuration = doc["duration"];
     alarmActive = doc["active"];
     currentHour = doc["currentTime"]["hour"];
     currentMinute = doc["currentTime"]["minute"];
@@ -237,6 +251,8 @@ void getJsonAndHandleResponse() {
     Serial.println(alarmHour);
     Serial.print("Minute: ");
     Serial.println(alarmMinute);
+    Serial.print("Duration: ");
+    Serial.println(alarmDuration);
     Serial.print("Active: ");
     Serial.println(alarmActive);
 #endif
@@ -262,6 +278,7 @@ void handleWaitingUntilAlarmTime() {
       currentMinute = currentMinute % 60;
     }
 
+    // Every 10 seconds, check the time and lights status. Otherwise, check for inbound connections.
     long serverCounterTime = millis();
     while (millis() - serverCounterTime < 10000) {
       handleLocalHtmlQuery();
@@ -279,7 +296,7 @@ void handleWaitingUntilAlarmTime() {
       setLightColor(alarmColor);
       currentLightColor = alarmColor;
       lightsLitTime = millis();
-    } else if ((lightsLitTime > 0) && (millis() - lightsLitTime > millisecondsSwitchedOn)) {
+    } else if ((lightsLitTime > 0) && (millis() - lightsLitTime > (alarmDuration * millisecondsSwitchedOnFactor))) {
       // Turn the lights off if they are turned of (determined by lightLitTime being > 0) and at least 10mins has elapsed since turned on.
 #ifdef DEBUG
       Serial.println(F("Turning lights off."));
