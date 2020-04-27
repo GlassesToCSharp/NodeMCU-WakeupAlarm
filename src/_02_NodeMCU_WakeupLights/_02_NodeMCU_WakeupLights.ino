@@ -38,10 +38,6 @@ const uint8_t queryHour = 2;
 const uint8_t queryMinute = 0;
 const uint32_t millisecondsSwitchedOnFactor = 60000; // 1 min
 
-const LED_COLORS alarmColor = { .red = 1023, .green = 1023, .blue = 0}; // In RGB format, 0-1023
-const LED_COLORS lightsOff = {0, 0, 0}; // Lights off!
-LED_COLORS currentLightColor = {0, 0, 0};
-
 // 4 objects, one is an object containing two objects. Add 52 bytes to it for strings duplication.
 // See https://arduinojson.org/v6/assistant/ for more information. Example JSON expected to receive:
 //  {
@@ -124,7 +120,7 @@ void setup() {
   Serial.println("/");
 #endif
 
-  // TODO: Auto detect the correct IP address of the server.
+  // Auto detect the correct IP address of the server.
   // Try ping-ing every IP address on the LAN for a matching
   // result. If requesting alarm data from the pinged address
   // works, this is the correct address.
@@ -294,7 +290,6 @@ void handleWaitingUntilAlarmTime() {
       Serial.println(F("Activating lights!"));
 #endif
       setLightColor(alarmColor);
-      currentLightColor = alarmColor;
       lightsLitTime = millis();
     } else if ((lightsLitTime > 0) && (millis() - lightsLitTime > (alarmDuration * millisecondsSwitchedOnFactor))) {
       // Turn the lights off if they are turned of (determined by lightLitTime being > 0) and at least 10mins has elapsed since turned on.
@@ -302,7 +297,6 @@ void handleWaitingUntilAlarmTime() {
       Serial.println(F("Turning lights off."));
 #endif
       setLightColor(lightsOff);
-      currentLightColor = lightsOff;
       lightsLitTime = 0;
     }
   }
@@ -425,8 +419,15 @@ void handleSetColourRequest() {
         }
       }
 
-      setLightColor(color);
-      currentLightColor = color;
+        setLightColor(color);
+#ifdef DEBUG
+      Serial.print("Color requested: ");
+      color.println(Serial);
+      Serial.print("Fade values: ");
+      for(uint16_t i = 0; i < fadeCapacity; i++) {
+        (*(fadeArray + i)).println(Serial);
+      }
+#endif
     }
     printAvailableMemory(4);
   }
